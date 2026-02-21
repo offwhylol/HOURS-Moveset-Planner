@@ -17,10 +17,11 @@ header{text-align:center;padding:20px;border-bottom:2px solid var(--green);box-s
 h1{margin:0;color:var(--green)}
 .container{display:grid;grid-template-columns:300px 1fr;gap:20px;padding:20px;}
 .hosts{background:var(--panel);border:2px solid var(--green);padding:10px;height:85vh;overflow-y:auto;}
-.host{display:flex;align-items:center;gap:10px;border:1px solid var(--soft);padding:5px;margin:5px 0;cursor:pointer;transition:0.2s;}
+.host{display:flex;flex-direction:column;align-items:center;gap:5px;border:1px solid var(--soft);padding:5px;margin:5px 0;cursor:pointer;transition:0.2s;}
 .host.completed{border:2px solid var(--green);box-shadow:0 0 10px var(--green);}
 .host:hover{border:1px solid var(--green);box-shadow:0 0 10px var(--green);}
 .host img{width:40px;height:40px;object-fit:contain;}
+.host button{margin-top:5px;padding:2px 6px;background:var(--green);color:black;border:none;cursor:pointer;font-size:12px;}
 .planner{background:var(--panel);border:2px solid var(--green);padding:20px;}
 .slot-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;}
 .slot{height:80px;border:2px solid var(--green);display:flex;align-items:center;justify-content:center;text-align:center;font-size:14px;box-shadow:0 0 10px #000 inset;flex-direction:column;padding:5px;transition:0.2s;cursor:pointer;}
@@ -28,7 +29,6 @@ h1{margin:0;color:var(--green)}
 .slot input[type=text]{width:90%;background:transparent;border:1px solid var(--green);color:var(--green);text-align:center;margin-top:5px;}
 .completed-text{color:var(--green);font-weight:bold;margin-top:10px;text-align:center;}
 </style>
-<!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 </head>
@@ -78,8 +78,6 @@ const hosts=[
 ];
 
 const SLOTS=["M1-1","M1-2","M1-3","M1-4","Move-1","Move-2","Move-3","Move-4","Move-5","Move-6","Move-7","Move-8","R Special","Awakening"];
-const TOTAL_SLOTS=SLOTS.length;
-
 let hostData=[];
 let currentHostIndex=null;
 
@@ -88,18 +86,15 @@ const slotGrid=document.getElementById("slotGrid");
 const plannerTitle=document.getElementById("plannerTitle");
 const completeText=document.getElementById("completeText");
 
-// Initialize local data and render immediately
+// Initialize local data
 hostData = hosts.map(h=>({name:h[0],img:h[1],slots:SLOTS.map(s=>({name:s,done:false,custom:""})),complete:false}));
 renderHostList();
 
-// Firebase data init
+// Firebase init
 const ref = db.ref('moveset');
 ref.once('value', snapshot => {
-  if(!snapshot.exists()){
-    ref.set(hostData);
-  } else {
-    hostData = snapshot.val();
-  }
+  if(!snapshot.exists()){ ref.set(hostData); } 
+  else { hostData = snapshot.val(); }
   renderHostList();
 });
 
@@ -107,57 +102,80 @@ ref.once('value', snapshot => {
 ref.on('value', snapshot => {
   if(snapshot.exists()){
     hostData = snapshot.val();
-    if(currentHostIndex !== null) renderHost(currentHostIndex);
+    if(currentHostIndex!==null) renderHost(currentHostIndex);
     renderHostList();
   }
 });
 
+// ==== RENDER HOST LIST WITH WIKI BUTTON ====
 function renderHostList(){
   hostList.innerHTML="";
   hostData.forEach((h,i)=>{
     const div=document.createElement("div");
     div.className="host"+(h.complete?" completed":"");
-    div.innerHTML=`<img src='${h.img}'><span>${h.name}</span>`;
+
+    // Host image
+    const img = document.createElement("img");
+    img.src=h.img;
+
+    // Name
+    const span = document.createElement("span");
+    span.textContent=h.name;
+
+    // Wiki button
+    const button=document.createElement("button");
+    button.textContent="Wiki Page";
+    button.onclick=(e)=>{
+      e.stopPropagation();
+      window.open(`https://hours-roblox.fandom.com/wiki/${encodeURIComponent(h.name)}`,"_blank");
+    };
+
     div.onclick=()=>selectHost(i);
+    div.appendChild(img);
+    div.appendChild(span);
+    div.appendChild(button);
     hostList.appendChild(div);
   });
 }
 
+// ==== SELECT HOST ====
 function selectHost(i){
   currentHostIndex=i;
   renderHost(i);
+  renderHostList();
 }
 
+// ==== RENDER SLOTS ====
 function renderHost(i){
   const h = hostData[i];
-  plannerTitle.textContent = h.name;
-  slotGrid.innerHTML = "";
+  plannerTitle.textContent=h.name;
+  slotGrid.innerHTML="";
   h.slots.forEach((s,j)=>{
     const slotDiv = document.createElement("div");
-    slotDiv.className = "slot" + (s.done ? " done" : "");
+    slotDiv.className = "slot" + (s.done?" done":"");
     slotDiv.innerHTML = `<div>${s.custom || s.name}</div>`;
-    slotDiv.onclick = () => {
-      s.done = !s.done;
+    slotDiv.onclick=()=>{
+      s.done=!s.done;
       checkComplete(i);
       renderHost(i);
       db.ref('moveset').set(hostData);
     };
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = s.custom;
-    input.placeholder = s.name;
-    input.oninput = (e) => { s.custom = e.target.value; db.ref('moveset').set(hostData); renderHost(i); };
+    const input=document.createElement("input");
+    input.type="text";
+    input.value=s.custom;
+    input.placeholder=s.name;
+    input.oninput=(e)=>{ s.custom=e.target.value; db.ref('moveset').set(hostData); renderHost(i); };
     slotDiv.appendChild(input);
     slotGrid.appendChild(slotDiv);
   });
   checkComplete(i);
 }
 
+// ==== CHECK COMPLETE ====
 function checkComplete(i){
   const h = hostData[i];
-  const allDone = h.slots.every(s=>s.done);
-  h.complete = allDone;
-  completeText.textContent = allDone ? "Moveset Complete! ✅" : "";
+  h.complete = h.slots.every(s=>s.done);
+  completeText.textContent = h.complete ? "Moveset Complete! ✅" : "";
   renderHostList();
   db.ref('moveset').set(hostData);
 }
