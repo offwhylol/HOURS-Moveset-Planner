@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HOURS Moveset Planner - Team Edition</title>
+<style>
+:root{
+  --bg:#050805;
+  --panel:#0a120a;
+  --green:#39ff14;
+  --soft:#1a2a1a;
+}
+*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+body{margin:0;background:var(--bg);color:white;}
+header{text-align:center;padding:20px;border-bottom:2px solid var(--green);box-shadow:0 0 20px var(--green);}
+h1{margin:0;color:var(--green)}
+.container{display:grid;grid-template-columns:300px 1fr;gap:20px;padding:20px;}
+.hosts{background:var(--panel);border:2px solid var(--green);padding:10px;height:85vh;overflow-y:auto;}
+.host{display:flex;align-items:center;gap:10px;border:1px solid var(--soft);padding:5px;margin:5px 0;cursor:pointer;transition:0.2s;}
+.host.completed{border:2px solid var(--green);box-shadow:0 0 10px var(--green);}
+.host:hover{border:1px solid var(--green);box-shadow:0 0 10px var(--green);}
+.host img{width:40px;height:40px;object-fit:contain;}
+.planner{background:var(--panel);border:2px solid var(--green);padding:20px;}
+.slot-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;}
+.slot{height:80px;border:2px solid var(--green);display:flex;align-items:center;justify-content:center;text-align:center;font-size:14px;box-shadow:0 0 10px #000 inset;flex-direction:column;padding:5px;transition:0.2s;cursor:pointer;}
+.slot.done{background:var(--green);color:black;font-weight:bold;}
+.slot input[type=text]{width:90%;background:transparent;border:1px solid var(--green);color:var(--green);text-align:center;margin-top:5px;}
+.completed-text{color:var(--green);font-weight:bold;margin-top:10px;text-align:center;}
+</style>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+</head>
+<body>
+<header>
+<h1>HOURS Moveset Planner</h1>
+</header>
+<div class="container">
+<div class="hosts" id="hostList"></div>
+<div class="planner">
+<h2 class="title" id="plannerTitle">Select a Host</h2>
+<div class="slot-grid" id="slotGrid"></div>
+<div id="completeText" class="completed-text"></div>
+</div>
+</div>
+<script>
+// ==== FIREBASE SETUP ====
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ==== HOST DATA ====
+const hosts=[
+["Invader","https://static.wikia.nocookie.net/hours-roblox/images/d/d6/InvaderIcon.png/revision/latest?cb=20210720181500&format=png"],
+["Prophet","https://static.wikia.nocookie.net/hours-roblox/images/1/14/ProphetIcon.png/revision/latest?cb=20210720181501&format=png"],
+["Witness","https://static.wikia.nocookie.net/hours-roblox/images/8/86/WitnessIcon.png/revision/latest?cb=20210720181501&format=png"],
+["Artisan","https://static.wikia.nocookie.net/hours-roblox/images/a/ae/ArtisanIcon.png/revision/latest?cb=20210720181501&format=png"],
+["Vestige","https://static.wikia.nocookie.net/hours-roblox/images/d/dd/VestigeIcon.png/revision/latest?cb=20210720181501&format=png"],
+["Visitor","https://static.wikia.nocookie.net/hours-roblox/images/1/13/VisitorIcon.png/revision/latest?cb=20210720181501&format=png"],
+["Subject","https://static.wikia.nocookie.net/hours-roblox/images/8/80/SubjectIcon.png/revision/latest?cb=20210720181501&format=png"],
+["Parting","https://static.wikia.nocookie.net/hours-roblox/images/f/f3/PartingIcon.png/revision/latest?cb=20210720154823&format=png"],
+["Dreamer","https://static.wikia.nocookie.net/hours-roblox/images/6/67/DreamerIcon.png/revision/latest?cb=20210720181501&format=png"],
+["Hot Rash","https://static.wikia.nocookie.net/hours-roblox/images/d/d9/HotRashIcon.png/revision/latest?cb=20210524005257&format=png"],
+["Hellion","https://static.wikia.nocookie.net/hours-roblox/images/e/ed/RidererIcon.png/revision/latest?cb=20210720181501&format=png"],
+["Drifter","https://static.wikia.nocookie.net/hours-roblox/images/2/23/DrifterIcon.png/revision/latest?cb=20210720181501&format=png"],
+["Equinox","https://static.wikia.nocookie.net/hours-roblox/images/f/f2/EquinoxIcon.png/revision/latest?cb=20210720154823&format=png"],
+["Bloxxer","https://static.wikia.nocookie.net/hours-roblox/images/0/0e/BloxxerIcon.png/revision/latest?cb=20210720154822&format=png"],
+["Buffon","https://static.wikia.nocookie.net/hours-roblox/images/8/83/BuffoonIcon.png/revision/latest?cb=20220722140826&format=png"]
+];
+
+const SLOTS=["M1-1","M1-2","M1-3","M1-4","Move-1","Move-2","Move-3","Move-4","Move-5","Move-6","Move-7","Move-8","R Special","Awakening"];
+const TOTAL_SLOTS=SLOTS.length;
+
+let hostData=[];
+let currentHostIndex=null;
+
+const hostList=document.getElementById("hostList");
+const slotGrid=document.getElementById("slotGrid");
+const plannerTitle=document.getElementById("plannerTitle");
+const completeText=document.getElementById("completeText");
+
+// Initialize local data and render immediately
+hostData = hosts.map(h=>({name:h[0],img:h[1],slots:SLOTS.map(s=>({name:s,done:false,custom:""})),complete:false}));
+renderHostList();
+
+// Firebase data init
+const ref = db.ref('moveset');
+ref.once('value', snapshot => {
+  if(!snapshot.exists()){
+    ref.set(hostData);
+  } else {
+    hostData = snapshot.val();
+  }
+  renderHostList();
+});
+
+// Firebase live sync
+ref.on('value', snapshot => {
+  if(snapshot.exists()){
+    hostData = snapshot.val();
+    if(currentHostIndex !== null) renderHost(currentHostIndex);
+    renderHostList();
+  }
+});
+
+function renderHostList(){
+  hostList.innerHTML="";
+  hostData.forEach((h,i)=>{
+    const div=document.createElement("div");
+    div.className="host"+(h.complete?" completed":"");
+    div.innerHTML=`<img src='${h.img}'><span>${h.name}</span>`;
+    div.onclick=()=>selectHost(i);
+    hostList.appendChild(div);
+  });
+}
+
+function selectHost(i){
+  currentHostIndex=i;
+  renderHost(i);
+}
+
+function renderHost(i){
+  const h = hostData[i];
+  plannerTitle.textContent = h.name;
+  slotGrid.innerHTML = "";
+  h.slots.forEach((s,j)=>{
+    const slotDiv = document.createElement("div");
+    slotDiv.className = "slot" + (s.done ? " done" : "");
+    slotDiv.innerHTML = `<div>${s.custom || s.name}</div>`;
+    slotDiv.onclick = () => {
+      s.done = !s.done;
+      checkComplete(i);
+      renderHost(i);
+      db.ref('moveset').set(hostData);
+    };
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = s.custom;
+    input.placeholder = s.name;
+    input.oninput = (e) => { s.custom = e.target.value; db.ref('moveset').set(hostData); renderHost(i); };
+    slotDiv.appendChild(input);
+    slotGrid.appendChild(slotDiv);
+  });
+  checkComplete(i);
+}
+
+function checkComplete(i){
+  const h = hostData[i];
+  const allDone = h.slots.every(s=>s.done);
+  h.complete = allDone;
+  completeText.textContent = allDone ? "Moveset Complete! ✅" : "";
+  renderHostList();
+  db.ref('moveset').set(hostData);
+}
+</script>
+</body>
+</html>
