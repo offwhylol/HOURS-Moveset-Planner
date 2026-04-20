@@ -1,184 +1,229 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>HOURS Moveset Planner - Team Edition</title>
-<style>
-:root{
-  --bg:#050805;
-  --panel:#0a120a;
-  --green:#39ff14;
-  --soft:#1a2a1a;
-}
-*{box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
-body{margin:0;background:var(--bg);color:white;}
-header{text-align:center;padding:20px;border-bottom:2px solid var(--green);box-shadow:0 0 20px var(--green);}
-h1{margin:0;color:var(--green)}
-.container{display:grid;grid-template-columns:300px 1fr;gap:20px;padding:20px;}
-.hosts{background:var(--panel);border:2px solid var(--green);padding:10px;height:85vh;overflow-y:auto;}
-.host{display:flex;flex-direction:column;align-items:center;gap:5px;border:1px solid var(--soft);padding:5px;margin:5px 0;cursor:pointer;transition:0.2s;}
-.host.completed{border:2px solid var(--green);box-shadow:0 0 10px var(--green);}
-.host:hover{border:1px solid var(--green);box-shadow:0 0 10px var(--green);}
-.host img{width:40px;height:40px;object-fit:contain;}
-.host button{margin-top:5px;padding:2px 6px;background:var(--green);color:black;border:none;cursor:pointer;font-size:12px;}
-.planner{background:var(--panel);border:2px solid var(--green);padding:20px;}
-.slot-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;}
-.slot{height:80px;border:2px solid var(--green);display:flex;align-items:center;justify-content:center;text-align:center;font-size:14px;box-shadow:0 0 10px #000 inset;flex-direction:column;padding:5px;transition:0.2s;cursor:pointer;}
-.slot.done{background:var(--green);color:black;font-weight:bold;}
-.slot input[type=text]{width:90%;background:transparent;border:1px solid var(--green);color:var(--green);text-align:center;margin-top:5px;}
-.completed-text{color:var(--green);font-weight:bold;margin-top:10px;text-align:center;}
-</style>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machine à Sous | Casino Indices</title>
+    <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32">
+    <meta name="theme-color" content="#0b0e16">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="/styles/indice.css">
+    <style>
+        .slots-machine{
+            background:var(--ic-card);border:1px solid rgba(201,168,76,.12);
+            border-radius:20px;padding:28px;margin:24px auto;max-width:360px;
+            position:relative;overflow:hidden;
+        }
+        .slots-machine::before{
+            content:'';position:absolute;top:0;left:0;right:0;height:1px;
+            background:linear-gradient(90deg,transparent,rgba(201,168,76,.3),transparent);
+        }
+        .slots-reels{
+            display:flex;justify-content:center;gap:12px;margin:20px 0;
+        }
+        .reel{
+            width:80px;height:90px;border-radius:14px;
+            background:rgba(0,0,0,.3);border:1px solid var(--ic-border);
+            display:flex;align-items:center;justify-content:center;
+            font-size:2.8rem;overflow:hidden;position:relative;
+        }
+        .reel-inner{transition:transform .1s;font-weight:800}
+        .reel.spinning .reel-inner{animation:reel-spin .15s linear infinite}
+        @keyframes reel-spin{
+            0%{transform:translateY(-20px);opacity:.5}
+            50%{transform:translateY(0);opacity:1}
+            100%{transform:translateY(20px);opacity:.5}
+        }
+        .reel.stopped .reel-inner{animation:reel-land .3s ease-out}
+        @keyframes reel-land{
+            0%{transform:scale(1.2)}50%{transform:scale(.95)}100%{transform:scale(1)}
+        }
+        .reel.win{
+            border-color:rgba(201,168,76,.4);
+            box-shadow:0 0 20px rgba(201,168,76,.15);
+            animation:reel-glow 1s ease-in-out infinite alternate;
+        }
+        @keyframes reel-glow{
+            from{box-shadow:0 0 20px rgba(201,168,76,.1)}
+            to{box-shadow:0 0 30px rgba(201,168,76,.25)}
+        }
+        .slots-line{
+            position:absolute;left:0;right:0;top:50%;height:2px;
+            background:linear-gradient(90deg,transparent 5%,rgba(201,168,76,.3) 20%,rgba(201,168,76,.3) 80%,transparent 95%);
+            transform:translateY(-1px);pointer-events:none;
+        }
+        .slots-multi{
+            text-align:center;margin-top:12px;font-size:1.4rem;font-weight:800;
+            color:var(--ic-gold);opacity:0;transition:opacity .3s;
+        }
+        .slots-multi.show{opacity:1;animation:multi-pop .4s ease-out}
+        @keyframes multi-pop{0%{transform:scale(0.5)}60%{transform:scale(1.2)}100%{transform:scale(1)}}
+        .slots-paytable{
+            display:grid;grid-template-columns:1fr 1fr;gap:6px;
+            margin-top:16px;padding-top:16px;border-top:1px solid var(--ic-border);
+        }
+        .pt-row{display:flex;align-items:center;justify-content:space-between;padding:4px 8px;font-size:.75rem;border-radius:6px}
+        .pt-row:hover{background:rgba(255,255,255,.02)}
+        .pt-sym{font-size:1rem}
+        .pt-mul{color:var(--ic-gold);font-weight:700}
+        .quick-bets{display:flex;gap:6px;margin-top:6px}
+        .qbet{padding:5px 12px;border-radius:6px;font-size:.75rem;font-weight:600;border:1px solid var(--ic-border);background:rgba(255,255,255,.02);color:var(--ic-text-3);cursor:pointer;transition:all .15s;font-family:var(--ic-font)}
+        .qbet:hover{border-color:var(--ic-gold);color:var(--ic-gold)}
+    </style>
+  <link rel="stylesheet" href="/styles/global-refresh.css">
 </head>
 <body>
-<header>
-<h1>HOURS Moveset Planner</h1>
-</header>
-<div class="container">
-<div class="hosts" id="hostList"></div>
-<div class="planner">
-<h2 class="title" id="plannerTitle">Select a Host</h2>
-<div class="slot-grid" id="slotGrid"></div>
-<div id="completeText" class="completed-text"></div>
-</div>
-</div>
-<script>
-// ==== FIREBASE SETUP ====
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+    <div class="ic-bg"></div><div class="ic-bg-grid"></div>
+    <nav class="ic-topbar">
+        <div class="ic-topbar-left"><a href="/indice" class="ic-topbar-back"><svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg> Retour</a></div>
+        <div class="ic-topbar-right">
+            <div class="ic-bal"><i class="ph-fill ph-coins"></i> <span id="topbar-bal">0</span></div>
+            <div class="ic-topbar-user" id="topbar-user" style="display:none"><img class="ic-topbar-avatar" id="topbar-avatar" src="" alt=""><span class="ic-topbar-name" id="topbar-name"></span></div>
+        </div>
+    </nav>
 
-// ==== HOST DATA ====
-const hosts=[
-["Invader","https://static.wikia.nocookie.net/hours-roblox/images/d/d6/InvaderIcon.png/revision/latest?cb=20210720181500&format=png"],
-["Prophet","https://static.wikia.nocookie.net/hours-roblox/images/1/14/ProphetIcon.png/revision/latest?cb=20210720181501&format=png"],
-["Witness","https://static.wikia.nocookie.net/hours-roblox/images/8/86/WitnessIcon.png/revision/latest?cb=20210720181501&format=png"],
-["Artisan","https://static.wikia.nocookie.net/hours-roblox/images/a/ae/ArtisanIcon.png/revision/latest?cb=20210720181501&format=png"],
-["Vestige","https://static.wikia.nocookie.net/hours-roblox/images/d/dd/VestigeIcon.png/revision/latest?cb=20210720181501&format=png"],
-["Visitor","https://static.wikia.nocookie.net/hours-roblox/images/1/13/VisitorIcon.png/revision/latest?cb=20210720181501&format=png"],
-["Subject","https://static.wikia.nocookie.net/hours-roblox/images/8/80/SubjectIcon.png/revision/latest?cb=20210720181501&format=png"],
-["Parting","https://static.wikia.nocookie.net/hours-roblox/images/f/f3/PartingIcon.png/revision/latest?cb=20210720154823&format=png"],
-["Dreamer","https://static.wikia.nocookie.net/hours-roblox/images/6/67/DreamerIcon.png/revision/latest?cb=20210720181501&format=png"],
-["Hot Rash","https://static.wikia.nocookie.net/hours-roblox/images/d/d9/HotRashIcon.png/revision/latest?cb=20210524005257&format=png"],
-["Hellion","https://static.wikia.nocookie.net/hours-roblox/images/e/ed/RidererIcon.png/revision/latest?cb=20210720181501&format=png"],
-["Drifter","https://static.wikia.nocookie.net/hours-roblox/images/2/23/DrifterIcon.png/revision/latest?cb=20210720181501&format=png"],
-["Equinox","https://static.wikia.nocookie.net/hours-roblox/images/f/f2/EquinoxIcon.png/revision/latest?cb=20210720154823&format=png"],
-["Bloxxer","https://static.wikia.nocookie.net/hours-roblox/images/0/0e/BloxxerIcon.png/revision/latest?cb=20210720154822&format=png"],
-["Buffon","https://static.wikia.nocookie.net/hours-roblox/images/8/83/BuffoonIcon.png/revision/latest?cb=20220722140826&format=png"]
-];
+    <div class="ic-login" id="login-screen">
+        <div class="ic-login-badge"><i class="ph-fill ph-lock-key"></i> Connexion requise</div>
+        <h1>Machine à <em>Sous</em></h1><p>Connecte-toi pour jouer.</p>
+        <a href="/auth/discord?returnTo=/indice/slots" class="ic-login-btn"><svg viewBox="0 0 24 24"><path d="M7.2 5.8C9.1 5 10.9 4.9 12 5c1.1 0 2.9.1 4.8.8.5.2 1 .6 1.3 1.2 1.1 1.9 1.9 4.2 2 6.7 0 .6-.4 1.1-1 1.2-2.7.6-4.6.9-7.1.9s-4.4-.3-7.1-.9c-.6-.1-1-.6-1-1.2.1-2.5.9-4.8 2-6.7.3-.6.8-1 1.3-1.2z"/><circle cx="9.2" cy="11.5" r="1.2" fill="#fff"/><circle cx="14.8" cy="11.5" r="1.2" fill="#fff"/></svg>Se connecter</a>
+    </div>
 
-const SLOTS=["M1-1","M1-2","M1-3","M1-4","Move-1","Move-2","Move-3","Move-4","Move-5","Move-6","Move-7","Move-8","R Special","Awakening"];
-let hostData=[];
-let currentHostIndex=null;
+    <div class="ic-main" id="app" style="display:none">
+        <div class="ic-game-area">
+            <div class="ic-game-header"><h1>Machine à Sous</h1><p>Aligne les symboles pour gagner</p></div>
 
-const hostList=document.getElementById("hostList");
-const slotGrid=document.getElementById("slotGrid");
-const plannerTitle=document.getElementById("plannerTitle");
-const completeText=document.getElementById("completeText");
+            <div class="slots-machine" id="slots-machine">
+                <div class="slots-reels">
+                    <div class="reel" id="r0"><div class="reel-inner" style="color:#c9a84c">7</div></div>
+                    <div class="reel" id="r1"><div class="reel-inner" style="color:#4f6ef7">♦</div></div>
+                    <div class="reel" id="r2"><div class="reel-inner" style="color:#f59e0b">★</div></div>
+                </div>
+                <div class="slots-line"></div>
+                <div class="slots-multi" id="slots-multi"></div>
+                <div class="slots-paytable">
+                    <div class="pt-row"><span class="pt-sym" style="color:#c9a84c;font-weight:800">7 7 7</span><span class="pt-mul">x10</span></div>
+                    <div class="pt-row"><span class="pt-sym" style="color:#4f6ef7">♦ ♦ ♦</span><span class="pt-mul">x7</span></div>
+                    <div class="pt-row"><span class="pt-sym" style="color:#f59e0b">★ ★ ★</span><span class="pt-mul">x5</span></div>
+                    <div class="pt-row"><span class="pt-sym">Triple</span><span class="pt-mul">x3</span></div>
+                    <div class="pt-row"><span class="pt-sym">Paire</span><span class="pt-mul">x2</span></div>
+                </div>
+            </div>
 
-// Initialize local data
-hostData = hosts.map(h=>({name:h[0],img:h[1],slots:SLOTS.map(s=>({name:s,done:false,custom:""})),complete:false}));
-renderHostList();
+            <div class="ic-field">
+                <div class="ic-label">Mise</div>
+                <input class="ic-input" type="number" id="bet-input" min="10" max="5000" value="50">
+                <div class="quick-bets">
+                    <button class="qbet" onclick="setBet(10)">10</button>
+                    <button class="qbet" onclick="setBet(50)">50</button>
+                    <button class="qbet" onclick="setBet(100)">100</button>
+                    <button class="qbet" onclick="setBet(500)">500</button>
+                    <button class="qbet" onclick="setBet('max')">MAX</button>
+                </div>
+            </div>
 
-// Firebase init
-const ref = db.ref('moveset');
-ref.once('value', snapshot => {
-  if(!snapshot.exists()){ ref.set(hostData); } 
-  else { hostData = snapshot.val(); }
-  renderHostList();
-});
+            <button class="ic-btn ic-btn-gold" id="btn-play" style="width:100%;padding:14px;font-size:.95rem;margin-top:8px">Tourner</button>
+            <div class="ic-result" id="result"></div>
+        </div>
+    </div>
+    <div class="ic-toast" id="toast"></div>
 
-// Firebase live sync
-ref.on('value', snapshot => {
-  if(snapshot.exists()){
-    hostData = snapshot.val();
-    if(currentHostIndex!==null) renderHost(currentHostIndex);
-    renderHostList();
-  }
-});
+    <script src="/scripts/indice-core.js"></script>
+    <script>
+    (function(){
+        var playing=false;
+        var symbols=['7','♦','★','♠','♣','K'];
+        var symCol={'7':'#c9a84c','♦':'#4f6ef7','★':'#f59e0b','♠':'#e2e8f0','♣':'#22c55e','K':'#a78bfa'};
 
-// ==== RENDER HOST LIST WITH WIKI BUTTON ====
-function renderHostList(){
-  hostList.innerHTML="";
-  hostData.forEach((h,i)=>{
-    const div=document.createElement("div");
-    div.className="host"+(h.complete?" completed":"");
+        window.setBet=function(v){IC.sfx.click();document.getElementById('bet-input').value=v==='max'?Math.min(IC.balance,5000):v};
 
-    // Host image
-    const img = document.createElement("img");
-    img.src=h.img;
+        function spinReel(id,finalSymbol,delay){
+            var el=document.getElementById(id);
+            var inner=el.querySelector('.reel-inner');
+            el.classList.remove('spinning','stopped','win');
+            el.classList.add('spinning');
 
-    // Name
-    const span = document.createElement("span");
-    span.textContent=h.name;
+            var interval=setInterval(function(){
+                var s=symbols[Math.floor(Math.random()*symbols.length)];
+                inner.textContent=s;inner.style.color=symCol[s]||'#e2e8f0';
+            },60);
 
-    // Wiki button
-    const button=document.createElement("button");
-    button.textContent="Wiki Page";
-    button.onclick=(e)=>{
-      e.stopPropagation();
-      window.open(`https://hours-roblox.fandom.com/wiki/${encodeURIComponent(h.name)}`,"_blank");
-    };
+            setTimeout(function(){
+                clearInterval(interval);
+                el.classList.remove('spinning');
+                el.classList.add('stopped');
+                inner.textContent=finalSymbol;
+                inner.style.color=symCol[finalSymbol]||'#e2e8f0';
+                IC.sfx.tick();
+            },delay);
+        }
 
-    div.onclick=()=>selectHost(i);
-    div.appendChild(img);
-    div.appendChild(span);
-    div.appendChild(button);
-    hostList.appendChild(div);
-  });
-}
+        document.getElementById('btn-play').onclick=async function(){
+            if(playing)return;
+            var bet=parseInt(document.getElementById('bet-input').value)||0;
+            if(bet<10||bet>5000){IC.toast('Mise entre 10 et 5 000','error');return}
+            if(bet>IC.balance){IC.toast('Solde insuffisant','error');IC.sfx.error();return}
 
-// ==== SELECT HOST ====
-function selectHost(i){
-  currentHostIndex=i;
-  renderHost(i);
-  renderHostList();
-}
+            playing=true;this.disabled=true;
+            IC.sfx.bet();
+            document.getElementById('slots-multi').classList.remove('show');
+            document.querySelectorAll('.reel').forEach(function(r){r.classList.remove('win')});
 
-// ==== RENDER SLOTS ====
-function renderHost(i){
-  const h = hostData[i];
-  plannerTitle.textContent=h.name;
-  slotGrid.innerHTML="";
-  h.slots.forEach((s,j)=>{
-    const slotDiv = document.createElement("div");
-    slotDiv.className = "slot" + (s.done?" done":"");
-    slotDiv.innerHTML = `<div>${s.custom || s.name}</div>`;
-    slotDiv.onclick=()=>{
-      s.done=!s.done;
-      checkComplete(i);
-      renderHost(i);
-      db.ref('moveset').set(hostData);
-    };
-    const input=document.createElement("input");
-    input.type="text";
-    input.value=s.custom;
-    input.placeholder=s.name;
-    input.oninput=(e)=>{ s.custom=e.target.value; db.ref('moveset').set(hostData); renderHost(i); };
-    slotDiv.appendChild(input);
-    slotGrid.appendChild(slotDiv);
-  });
-  checkComplete(i);
-}
+            try{
+                var data=await IC.api('/api/indice/game/slots',{method:'POST',body:JSON.stringify({bet:bet})});
+                var reels=data.reels;
 
-// ==== CHECK COMPLETE ====
-function checkComplete(i){
-  const h = hostData[i];
-  h.complete = h.slots.every(s=>s.done);
-  completeText.textContent = h.complete ? "Moveset Complete! ✅" : "";
-  renderHostList();
-  db.ref('moveset').set(hostData);
-}
-</script>
+                IC.sfx.spin();
+                spinReel('r0',reels[0],600);
+                spinReel('r1',reels[1],900);
+                spinReel('r2',reels[2],1200);
+
+                setTimeout(function(){
+                    IC.setBalance(data.balance);
+                    var machine=document.getElementById('slots-machine');
+
+                    if(data.won){
+                        // Highlight matching reels
+                        var els=[document.getElementById('r0'),document.getElementById('r1'),document.getElementById('r2')];
+                        if(reels[0]===reels[1]&&reels[1]===reels[2]){
+                            els.forEach(function(e){e.classList.add('win')});
+                        }else{
+                            if(reels[0]===reels[1]){els[0].classList.add('win');els[1].classList.add('win')}
+                            if(reels[1]===reels[2]){els[1].classList.add('win');els[2].classList.add('win')}
+                            if(reels[0]===reels[2]){els[0].classList.add('win');els[2].classList.add('win')}
+                        }
+                        var multi=document.getElementById('slots-multi');
+                        multi.textContent='x'+data.multiplier;
+                        multi.classList.add('show');
+
+                        if(data.multiplier>=5){IC.sfx.bigWin();IC.shake(5,300);IC.particles(machine,40)}
+                        else{IC.sfx.win();IC.particles(machine,20)}
+
+                        var r=document.getElementById('result');
+                        r.innerHTML='<div class="ic-result-label win">x'+data.multiplier+' !</div>'
+                            +'<div class="ic-result-payout"><strong class="pos">+'+Number(data.payout).toLocaleString('fr-FR')+'</strong> jetons</div>';
+                        r.classList.add('show');
+                        setTimeout(function(){r.classList.remove('show')},3000);
+                    }else{
+                        IC.sfx.lose();
+                        var r=document.getElementById('result');
+                        r.innerHTML='<div class="ic-result-label lose">Perdu</div>'
+                            +'<div class="ic-result-payout"><strong class="neg">'+Number(data.payout).toLocaleString('fr-FR')+'</strong> jetons</div>';
+                        r.classList.add('show');
+                        setTimeout(function(){r.classList.remove('show')},2500);
+                    }
+                    playing=false;document.getElementById('btn-play').disabled=false;
+                },1400);
+            }catch(e){
+                IC.toast(e.message,'error');IC.sfx.error();playing=false;this.disabled=false;
+            }
+        };
+
+        IC.initAuth();
+    })();
+    </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"c460228bb10e4505b344c44147377518","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
